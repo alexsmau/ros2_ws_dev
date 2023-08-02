@@ -19,8 +19,12 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "std_msgs/msg/header.hpp"
 
 #include "opencv2/opencv.hpp"
+#include "cv_bridge/cv_bridge.h"
+#include <image_transport/image_transport.hpp>
 
 #include <iostream>
 
@@ -31,48 +35,62 @@ using namespace std::chrono_literals;
 
 class MinimalPublisher : public rclcpp::Node
 {
-public:
-  MinimalPublisher()
-  : Node("minimal_publisher"), count_(0)
-  {
-    publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
-    timer_ = this->create_wall_timer(
-      500ms, std::bind(&MinimalPublisher::timer_callback, this));
-    
-    cv::namedWindow( "test", cv::WINDOW_AUTOSIZE );
-    cv::VideoCapture cap(0);
-    
-    if (!cap.isOpened()) {
-      std::cout << "cannot open camera";
-    }
+      public:
+	MinimalPublisher() : Node("webcam_publisher"), count_(0)
+	{
+		cap_.open(0);
+		if (!cap_.isOpened()) {
+			std::cout << "cannot open camera";
+			// rclcpp::cancel();
+		}
 
-    cv::Mat image;
+		publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
+			"webcam_image", 10);
 
-    while (true) {
-      cap >> image;
-      cv::imshow("test", image);
-      cv::waitKey(25);
-    }
+		timer_ = this->create_wall_timer(
+			10ms,
+			std::bind(&MinimalPublisher::timer_callback, this));
 
-  }
+#if 0
+		while (true) {
+			cap >> image;
+			cv::imshow("test", image);
+			cv::waitKey(25);
+		}
+#endif
+	}
 
-private:
-  void timer_callback()
-  {
-    auto message = std_msgs::msg::String();
-    message.data = "Hello, world! " + std::to_string(count_++);
-    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
-    publisher_->publish(message);
-  }
-  rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
-  size_t count_;
+      private:
+	void timer_callback()
+	{
+		cap_ >> image_;
+		// into a ROS image message
+		msg_ = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8",
+					  image_)
+			       .toImageMsg();
+
+		// Publish the image to the topic defined in the publisher
+		publisher_->publish(*msg_.get());
+
+		auto message = std_msgs::msg::String();
+		RCLCPP_INFO(this->get_logger(), "Image %ld published", count_);
+		count_++;
+	}
+
+	rclcpp::TimerBase::SharedPtr timer_;
+	sensor_msgs::msg::Image::SharedPtr msg_;
+	rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
+
+	cv::VideoCapture cap_;
+	cv::Mat image_;
+
+	size_t count_;
 };
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<MinimalPublisher>());
-  rclcpp::shutdown();
-  return 0;
+	rclcpp::init(argc, argv);
+	rclcpp::spin(std::make_shared<MinimalPublisher>());
+	rclcpp::shutdown();
+	return 0;
 }

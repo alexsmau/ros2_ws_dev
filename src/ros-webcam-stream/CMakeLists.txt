@@ -10,11 +10,14 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED) 
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
 
 add_executable(cam_publisher src/webcam_publisher.cpp)
-ament_target_dependencies(cam_publisher rclcpp std_msgs OpenCV)
+ament_target_dependencies(cam_publisher rclcpp std_msgs sensor_msgs cv_bridge image_transport OpenCV)
 
 install(TARGETS
   cam_publisher

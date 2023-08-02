@@ -31,6 +31,9 @@ devel_isolated/
 .project
 .cproject
 
+.vscode
+.editorconfig
+
 # qcreator stuff
 CMakeLists.txt.user
 
